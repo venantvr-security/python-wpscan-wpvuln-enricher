@@ -20,7 +20,7 @@ RUN python -m venv /work/venv && \
     /work/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copier le code source et les tests
-COPY main.py main_test.py ./
+COPY main.py parser.py main_test.py ./
 
 # Exécuter les tests unitaires pendant le build
 # Si un test échoue, le build échoue (fail-fast)
@@ -46,6 +46,7 @@ LABEL com.wpvulnerability.api-docs="https://www.wpvulnerability.net/api/plugins/
 
 # Copier l'application et le virtualenv complet
 COPY --from=builder /work/main.py /app/main.py
+COPY --from=builder /work/parser.py /app/parser.py
 COPY --from=builder /work/venv /app/venv
 
 # Variables d'environnement
