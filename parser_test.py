@@ -502,5 +502,48 @@ class TestVulnerabilitySeverity:
         assert finding.severity == "MEDIUM"
 
 
+# =============================================================================
+# Test: is_parser_mode function
+# =============================================================================
+
+class TestIsParserMode:
+    """Test is_parser_mode() function from main.py."""
+
+    def test_parser_mode_env_var(self):
+        """PARSER_MODE=true should enable parser mode."""
+        from main import is_parser_mode
+
+        os.environ["PARSER_MODE"] = "true"
+        try:
+            assert is_parser_mode() is True
+        finally:
+            os.environ.pop("PARSER_MODE", None)
+
+    def test_parser_mode_default(self):
+        """Default should be False."""
+        from main import is_parser_mode
+
+        os.environ.pop("PARSER_MODE", None)
+        # Save and reset sys.argv
+        old_argv = sys.argv
+        sys.argv = ["test"]
+        try:
+            assert is_parser_mode() is False
+        finally:
+            sys.argv = old_argv
+
+    def test_parser_mode_flag(self):
+        """--parser flag should enable parser mode."""
+        from main import is_parser_mode
+
+        os.environ.pop("PARSER_MODE", None)
+        old_argv = sys.argv
+        sys.argv = ["test", "--parser"]
+        try:
+            assert is_parser_mode() is True
+        finally:
+            sys.argv = old_argv
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
