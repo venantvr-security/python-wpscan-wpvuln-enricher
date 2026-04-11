@@ -1,0 +1,59 @@
+# =============================================================================
+# DOCKERFILE - WPScan WPVuln Enricher (Python)
+# Build multi-stage pour une image finale minimale et sécurisée (0 CVE)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# STAGE 1: Tests et préparation
+# Image Chainguard Python - maintenue avec 0 CVE connues
+# https://images.chainguard.dev/directory/image/python/overview
+# -----------------------------------------------------------------------------
+FROM cgr.dev/chainguard/python:latest-dev AS builder
+
+WORKDIR /work
+
+# Copier les dépendances
+COPY requirements.txt ./
+
+# Installer les dépendances dans un virtualenv
+RUN python -m venv /work/venv && \
+    /work/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Copier le code source et les tests
+COPY main.py main_test.py ./
+
+# Exécuter les tests unitaires pendant le build
+# Si un test échoue, le build échoue (fail-fast)
+RUN /work/venv/bin/pytest -v main_test.py
+
+# -----------------------------------------------------------------------------
+# STAGE 2: Image d'exécution
+# Image Chainguard Python - minimale avec 0 CVE
+# https://images.chainguard.dev/directory/image/python/overview
+# -----------------------------------------------------------------------------
+FROM cgr.dev/chainguard/python:latest
+
+# Labels OCI standard pour la traçabilité
+LABEL org.opencontainers.image.title="WPScan WPVuln Enricher"
+LABEL org.opencontainers.image.description="secureCodeBox hook to enrich WPScan findings with WPVulnerability data"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/venantvr-security/python-wpscan-wpvuln-enricher"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Labels custom pour la version de l'API
+LABEL com.wpvulnerability.api-version="2024-01"
+LABEL com.wpvulnerability.api-docs="https://www.wpvulnerability.net/api/plugins/"
+
+# Copier l'application et les dépendances depuis le virtualenv
+COPY --from=builder /work/main.py /app/main.py
+COPY --from=builder /work/venv/lib/python3.13/site-packages /app/site-packages
+
+# Variables d'environnement
+# secureCodeBox injecte READ_FILE et WRITE_FILE automatiquement
+ENV READ_FILE=/tmp/findings.json
+ENV WRITE_FILE=/tmp/findings.json
+ENV PYTHONPATH=/app/site-packages
+ENV PYTHONUNBUFFERED=1
+
+# Point d'entrée
+ENTRYPOINT ["python", "/app/main.py"]

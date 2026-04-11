@@ -1,0 +1,72 @@
+# -----------------------------------------------------------------------------
+# secureCodeBox - Read-and-Write Hook
+# Enrichit les résultats WPScan avec les données de l'API WPVulnerability
+# -----------------------------------------------------------------------------
+apiVersion: execution.securecodebox.io/v1
+kind: ScanCompletionHook
+metadata:
+  name: python-wpscan-wpvuln-enricher
+  namespace: securecodebox          # adapter si namespace différent
+  labels:
+    app.kubernetes.io/name: python-wpscan-wpvuln-enricher
+    app.kubernetes.io/component: hook
+    app.kubernetes.io/part-of: securecodebox
+spec:
+  # -- Type de Hook -----------------------------------------------------
+  # ReadAndWrite : lit les findings, les modifie, les réécrit
+  type: ReadAndWrite
+
+  # -- Image du Hook ----------------------------------------------------
+  image: ghcr.io/venantvr-security/python-wpscan-wpvuln-enricher:latest
+  # imagePullPolicy: Always   # décommenter en dev/staging
+  # imagePullSecrets:
+  #   - name: ghcr-credentials
+
+  # -- Sélecteur de scan ------------------------------------------------
+  # Ce hook ne s'exécute que pour les scans de type "wpscan"
+  scanLabels:
+    scanType: wpscan
+  # Alternative via selector Kubernetes :
+  # scanSelector:
+  #   matchLabels:
+  #     scanType: wpscan
+
+  # -- Ressources du Job Kubernetes -------------------------------------
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+
+  # -- Variables d'environnement supplémentaires ------------------------
+  # READ_FILE et WRITE_FILE sont automatiquement injectés par le Hook controller.
+  # Vous pouvez ajouter des variables custom ici si besoin :
+  # env:
+  #   - name: WPVULN_API_BASE
+  #     value: "https://api.wpvulnerability.net/plugin/"
+
+  # -- Politique de redémarrage -----------------------------------------
+  # "Never" : si le hook échoue, le scan est marqué en erreur (recommandé)
+  # "OnFailure" : Kubernetes relance le Job automatiquement
+  # TTL du Job après complétion (nettoyage automatique)
+  ttlSecondsAfterFinished: 300
+
+  # -- Tolérances et affinités (optionnel) ------------------------------
+  # tolerations:
+  #   - key: "securecodebox"
+  #     operator: "Exists"
+  #     effect: "NoSchedule"
+
+---
+# -----------------------------------------------------------------------------
+# (Optionnel) ServiceAccount dédié avec droits minimaux
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: python-wpscan-wpvuln-enricher
+  namespace: securecodebox
+  labels:
+    app.kubernetes.io/name: python-wpscan-wpvuln-enricher

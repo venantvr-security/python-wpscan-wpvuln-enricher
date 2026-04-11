@@ -1,0 +1,9 @@
+# =============================================================================
+# Dependencies - WPScan WPVuln Enricher (Python)
+# =============================================================================
+
+# HTTP client - API plus simple que urllib.request
+requests>=2.31.0
+
+# Tests unitaires
+pytest>=8.0.0

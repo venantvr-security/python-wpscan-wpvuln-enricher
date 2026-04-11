@@ -1,0 +1,57 @@
+name: Build & Push Docker image to GHCR
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"          # déclenche aussi sur git tag v1.0.0, v1.2.3, etc.
+  pull_request:
+    branches:
+      - main          # build uniquement (sans push) pour vérifier que ça compile
+
+env:
+  IMAGE: ghcr.io/venantvr-security/python-wpscan-wpvuln-enricher
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # nécessaire pour pusher sur ghcr.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # token automatique, pas de PAT à créer
+
+      - name: Extract Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # :latest sur chaque push sur main
+            type=raw,value=latest,enable={{is_default_branch}}
+            # :v1.2.3 sur un git tag
+            type=semver,pattern={{version}}
+            # :sha-abc1234 pour traçabilité
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache entre les runs pour accélérer les builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

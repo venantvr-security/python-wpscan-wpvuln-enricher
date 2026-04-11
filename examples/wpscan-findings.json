@@ -1,0 +1,43 @@
+[
+  {
+    "id": "wpscan-001",
+    "name": "Plugin: updraftplus",
+    "description": "WordPress plugin UpdraftPlus detected",
+    "category": "WordPress Plugin",
+    "location": "https://example.com",
+    "osi_layer": "APPLICATION",
+    "severity": "INFORMATIONAL",
+    "attributes": {
+      "slug": "updraftplus",
+      "version": "1.23.0"
+    },
+    "false_positive": false
+  },
+  {
+    "id": "wpscan-002",
+    "name": "Plugin: contact-form-7",
+    "description": "WordPress plugin Contact Form 7 detected",
+    "category": "WordPress Plugin",
+    "location": "https://example.com",
+    "osi_layer": "APPLICATION",
+    "severity": "INFORMATIONAL",
+    "attributes": {
+      "slug": "contact-form-7",
+      "version": "5.7.0"
+    },
+    "false_positive": false
+  },
+  {
+    "id": "wpscan-003",
+    "name": "WordPress Version 6.4.2",
+    "description": "WordPress core version detected",
+    "category": "WordPress Core",
+    "location": "https://example.com",
+    "osi_layer": "APPLICATION",
+    "severity": "INFORMATIONAL",
+    "attributes": {
+      "version": "6.4.2"
+    },
+    "false_positive": false
+  }
+]
