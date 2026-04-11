@@ -44,16 +44,16 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL com.wpvulnerability.api-version="2024-01"
 LABEL com.wpvulnerability.api-docs="https://www.wpvulnerability.net/api/plugins/"
 
-# Copier l'application et les dépendances depuis le virtualenv
+# Copier l'application et le virtualenv complet
 COPY --from=builder /work/main.py /app/main.py
-COPY --from=builder /work/venv/lib/python3.13/site-packages /app/site-packages
+COPY --from=builder /work/venv /app/venv
 
 # Variables d'environnement
 # secureCodeBox injecte READ_FILE et WRITE_FILE automatiquement
 ENV READ_FILE=/tmp/findings.json
 ENV WRITE_FILE=/tmp/findings.json
-ENV PYTHONPATH=/app/site-packages
+ENV PATH="/app/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Point d'entrée
+# Point d'entrée - utilise le python du venv
 ENTRYPOINT ["python", "/app/main.py"]
