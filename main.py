@@ -698,8 +698,22 @@ def write_output(findings: list[Finding], write_file: str) -> None:
 # C'est la première fonction exécutée quand le programme démarre.
 # =============================================================================
 
+def is_parser_mode() -> bool:
+    """Vérifie si le programme doit s'exécuter en mode parser."""
+    if os.environ.get("PARSER_MODE") == "true":
+        return True
+    return "--parser" in sys.argv or "-parser" in sys.argv
+
+
 def main() -> None:
     """Point d'entrée principal du programme."""
+
+    # =========================================================================
+    # MODE PARSER: Si activé, exécuter le parser WPScan au lieu du hook
+    # =========================================================================
+    if is_parser_mode():
+        from parser import main as parser_main
+        sys.exit(parser_main())
 
     # =========================================================================
     # ÉTAPE 1: Vérification de l'API au démarrage

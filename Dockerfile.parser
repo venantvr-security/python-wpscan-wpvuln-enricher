@@ -1,0 +1,19 @@
+# Dockerfile pour le WPScan Parser (Python)
+# Build: docker build -f Dockerfile.parser -t wpscan-parser:python .
+# Usage: docker run -e READ_FILE=/data/input.json -e WRITE_FILE=/data/output.json -v /path:/data wpscan-parser:python
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copier les fichiers source
+COPY parser.py ./
+
+# Pas de dépendances externes pour le parser
+
+# Variables d'environnement par défaut
+ENV PARSER_MODE=true
+ENV PYTHONUNBUFFERED=1
+
+# Point d'entrée
+ENTRYPOINT ["python", "parser.py"]
