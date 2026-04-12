@@ -4,7 +4,10 @@ WPScan Parser pour secureCodeBox
 
 Ce parser convertit la sortie JSON brute de WPScan en format Finding secureCodeBox.
 
-Usage:
+Usage secureCodeBox (URLs présignées en arguments):
+    python parser.py <raw_results_url> <findings_upload_url>
+
+Usage standalone:
     READ_FILE=/path/to/wpscan-results.json WRITE_FILE=/path/to/findings.json python parser.py
 
 Ou en mode stdin/stdout:
@@ -18,6 +21,13 @@ import sys
 import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any, Optional
+
+# Import conditionnel de requests (utilisé en mode secureCodeBox)
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 # Configuration du logging
 logging.basicConfig(
@@ -402,6 +412,38 @@ def parse_wpscan_results(raw_json: str) -> list[dict]:
 
 
 # =============================================================================
+# FONCTIONS HTTP POUR MODE SECURECODEBOX
+# =============================================================================
+
+def download_from_url(url: str) -> bytes:
+    """Télécharge le contenu d'une URL présignée"""
+    if not HAS_REQUESTS:
+        raise ImportError("requests library required for secureCodeBox mode")
+
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.content
+
+
+def upload_to_url(url: str, data: bytes) -> None:
+    """Upload des données vers une URL présignée"""
+    if not HAS_REQUESTS:
+        raise ImportError("requests library required for secureCodeBox mode")
+
+    response = requests.put(url, data=data, timeout=30)
+    response.raise_for_status()
+
+
+def is_securecodebox_mode() -> bool:
+    """Détecte si on est en mode secureCodeBox (URLs en arguments)"""
+    return (
+        len(sys.argv) >= 3 and
+        sys.argv[1].startswith("http") and
+        sys.argv[2].startswith("http")
+    )
+
+
+# =============================================================================
 # POINT D'ENTRÉE
 # =============================================================================
 
@@ -409,17 +451,36 @@ def main():
     """Point d'entrée du parser"""
     logger.info(f"WPScan Parser v{VERSION} starting...")
 
-    # Lire l'entrée
-    read_file = os.environ.get("READ_FILE", "")
+    raw_json = ""
+    upload_url = ""
 
     try:
-        if read_file:
-            logger.info(f"Reading from file: {read_file}")
-            with open(read_file, "r", encoding="utf-8") as f:
-                raw_json = f.read()
+        # Mode secureCodeBox: URLs passées en arguments
+        # argv[1] = URL de téléchargement des résultats bruts
+        # argv[2] = URL d'upload des findings
+        if is_securecodebox_mode():
+            raw_results_url = sys.argv[1]
+            upload_url = sys.argv[2]
+
+            logger.info("secureCodeBox mode detected")
+            logger.info(f"Raw results URL: {raw_results_url[:100]}...")
+            logger.info(f"Findings upload URL: {upload_url[:100]}...")
+
+            raw_bytes = download_from_url(raw_results_url)
+            raw_json = raw_bytes.decode("utf-8")
+            logger.info(f"Received {len(raw_bytes)} bytes of raw results")
+
         else:
-            logger.info("Reading from stdin...")
-            raw_json = sys.stdin.read()
+            # Mode standalone: lecture depuis fichier ou stdin
+            read_file = os.environ.get("READ_FILE", "")
+
+            if read_file:
+                logger.info(f"Reading from file: {read_file}")
+                with open(read_file, "r", encoding="utf-8") as f:
+                    raw_json = f.read()
+            else:
+                logger.info("Reading from stdin...")
+                raw_json = sys.stdin.read()
 
         if not raw_json.strip():
             raise ValueError("Empty input")
@@ -432,13 +493,21 @@ def main():
         # Écrire la sortie
         output = json.dumps(findings, indent=2, ensure_ascii=False)
 
-        write_file = os.environ.get("WRITE_FILE", "")
-        if write_file:
-            logger.info(f"Writing to file: {write_file}")
-            with open(write_file, "w", encoding="utf-8") as f:
-                f.write(output)
+        # Mode secureCodeBox: upload vers MinIO
+        if upload_url:
+            logger.info("Uploading findings to storage...")
+            upload_to_url(upload_url, output.encode("utf-8"))
+            logger.info(f"Successfully uploaded {len(findings)} finding(s)")
+
         else:
-            print(output)
+            # Mode standalone: écriture fichier ou stdout
+            write_file = os.environ.get("WRITE_FILE", "")
+            if write_file:
+                logger.info(f"Writing to file: {write_file}")
+                with open(write_file, "w", encoding="utf-8") as f:
+                    f.write(output)
+            else:
+                print(output)
 
         logger.info("Parser completed successfully")
         return 0
@@ -450,7 +519,11 @@ def main():
         logger.error(f"Parse error: {e}")
         return 1
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        error_type = type(e).__name__
+        if "Request" in error_type or "HTTP" in error_type or "Connection" in error_type:
+            logger.error(f"HTTP error: {e}")
+        else:
+            logger.error(f"Unexpected error ({error_type}): {e}")
         return 1
 
 
