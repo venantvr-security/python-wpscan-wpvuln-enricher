@@ -49,10 +49,11 @@ COPY --from=builder /work/main.py /app/main.py
 COPY --from=builder /work/parser.py /app/parser.py
 COPY --from=builder /work/venv /app/venv
 
-# Variables d'environnement
-# secureCodeBox injecte READ_FILE et WRITE_FILE automatiquement
-ENV READ_FILE=/tmp/findings.json
-ENV WRITE_FILE=/tmp/findings.json
+# secureCodeBox passe les URLs comme arguments de ligne de commande:
+#   argv[1] = URL raw results (download)
+#   argv[2] = URL findings (download)
+#   argv[3] = URL raw results (upload) - pour ReadAndWrite
+#   argv[4] = URL findings (upload) - pour ReadAndWrite
 ENV PATH="/app/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 

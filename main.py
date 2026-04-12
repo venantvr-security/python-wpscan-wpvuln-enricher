@@ -672,24 +672,48 @@ def extract_location(findings: list[Finding]) -> str:
 
 
 # =============================================================================
+# TÉLÉCHARGEMENT DEPUIS URL (pour secureCodeBox)
+# =============================================================================
+
+def download_from_url(url: str) -> bytes:
+    """Télécharge le contenu d'une URL."""
+    response = requests.get(url, timeout=REQUEST_TIMEOUT)
+    if response.status_code != 200:
+        raise Exception(f"HTTP GET returned status {response.status_code}")
+    return response.content
+
+
+# =============================================================================
+# UPLOAD VERS URL (pour secureCodeBox)
+# =============================================================================
+
+def upload_to_url(url: str, data: bytes) -> None:
+    """Envoie le contenu vers une URL via HTTP PUT."""
+    response = requests.put(url, data=data, headers={"Content-Type": ""}, timeout=REQUEST_TIMEOUT)
+    if not (200 <= response.status_code < 300):
+        raise Exception(f"HTTP PUT returned status {response.status_code}: {response.text}")
+
+
+# =============================================================================
 # ÉCRITURE DU RÉSULTAT
 # =============================================================================
 
-def write_output(findings: list[Finding], write_file: str) -> None:
-    """Écrit les findings en JSON dans un fichier ou sur stdout."""
+def write_output(findings: list[Finding], upload_url: str) -> None:
+    """Écrit les findings en JSON vers une URL ou sur stdout."""
     # Convertir en liste de dictionnaires pour JSON
     output = [f.to_dict() for f in findings]
 
     # Générer du JSON formaté (lisible)
     out = json.dumps(output, indent=2, ensure_ascii=False)
 
-    if write_file:
-        # Écrire dans le fichier spécifié
-        with open(write_file, "w", encoding="utf-8") as f:
-            f.write(out)
-        logger.info(f"Results written to {write_file} ({len(findings)} finding(s) total)")
+    if upload_url:
+        # Upload vers l'URL spécifiée (MinIO via secureCodeBox)
+        logger.info(f"Uploading {len(findings)} finding(s) to storage...")
+        upload_to_url(upload_url, out.encode("utf-8"))
+        logger.info(f"Results uploaded successfully ({len(findings)} finding(s) total)")
     else:
         # Fallback: écrire sur la sortie standard
+        logger.info("No upload URL provided, writing to stdout")
         print(out)
 
 
@@ -721,24 +745,31 @@ def main() -> None:
     check_api_health()
 
     # =========================================================================
-    # ÉTAPE 2: Lecture des variables d'environnement
-    # secureCodeBox injecte ces variables automatiquement
+    # ÉTAPE 2: Lecture des URLs depuis les arguments de ligne de commande
+    # secureCodeBox passe les URLs comme arguments:
+    #   argv[1] = URL raw results (download)
+    #   argv[2] = URL findings (download)
+    #   argv[3] = URL raw results (upload) - pour ReadAndWrite
+    #   argv[4] = URL findings (upload) - pour ReadAndWrite
     # =========================================================================
-    read_file = os.environ.get("READ_FILE", "")
-    write_file = os.environ.get("WRITE_FILE", "")
-
-    if not read_file:
-        logger.error("READ_FILE environment variable is not set")
+    if len(sys.argv) < 3:
+        logger.error("Usage: hook <raw-results-url> <findings-url> [<raw-upload-url> <findings-upload-url>]")
         sys.exit(1)
 
+    findings_download_url = sys.argv[2]
+    findings_upload_url = sys.argv[4] if len(sys.argv) >= 5 else ""
+
+    logger.info(f"Findings download URL: {findings_download_url}")
+    if findings_upload_url:
+        logger.info(f"Findings upload URL: {findings_upload_url}")
+
     # =========================================================================
-    # ÉTAPE 3: Lecture et parsing du fichier de findings WPScan
+    # ÉTAPE 3: Téléchargement et parsing des findings
     # =========================================================================
     try:
-        with open(read_file, "r", encoding="utf-8") as f:
-            raw = f.read()
-    except IOError as e:
-        logger.error(f"Cannot read findings file {read_file}: {e}")
+        raw = download_from_url(findings_download_url)
+    except Exception as e:
+        logger.error(f"Cannot download findings: {e}")
         sys.exit(1)
 
     try:
@@ -748,7 +779,7 @@ def main() -> None:
         logger.error(f"Cannot parse findings JSON: {e}")
         sys.exit(1)
 
-    logger.info(f"Loaded {len(findings)} finding(s) from {read_file}")
+    logger.info(f"Loaded {len(findings)} finding(s) from storage")
 
     # =========================================================================
     # ÉTAPE 4: Extraction des slugs de plugins
@@ -756,7 +787,7 @@ def main() -> None:
     slugs = extract_plugin_slugs(findings)
     if not slugs:
         logger.info("No WordPress plugin findings detected - nothing to enrich")
-        write_output(findings, write_file)
+        write_output(findings, findings_upload_url)
         return
 
     logger.info(f"Plugins to check: {slugs}")
@@ -796,7 +827,7 @@ def main() -> None:
     # ÉTAPE 6: Fusion et écriture des résultats
     # =========================================================================
     merged = findings + enriched
-    write_output(merged, write_file)
+    write_output(merged, findings_upload_url)
 
 
 if __name__ == "__main__":
