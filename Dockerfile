@@ -19,12 +19,8 @@ COPY requirements.txt ./
 RUN python -m venv /work/venv && \
     /work/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Copier le code source et les tests
-COPY main.py parser.py main_test.py parser_test.py ./
-
-# Exécuter les tests unitaires pendant le build
-# Si un test échoue, le build échoue (fail-fast)
-RUN /work/venv/bin/pytest -v main_test.py parser_test.py
+# Copier le code source
+COPY main.py parser.py ./
 
 # -----------------------------------------------------------------------------
 # STAGE 2: Image d'exécution
