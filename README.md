@@ -169,7 +169,7 @@ The hook generates findings in secureCodeBox format:
 
 ```bash
 pip install -r requirements.txt
-pytest -v main_test.py
+pytest -v tests/
 ```
 
 ### Local Execution
@@ -275,13 +275,15 @@ flowchart TD
 ```
 .
 ├── main.py                 # Main application code (commented for beginners)
-├── main_test.py            # Unit tests (15+ tests with pytest)
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Multi-stage Docker build (distroless)
 ├── hook.yaml               # secureCodeBox hook manifest
 ├── README.md               # This file
-├── DOCKER.md               # Docker commands cheat sheet
-├── .gitignore              # Git ignore rules
+├── docs/
+│   └── DOCKER.md           # Docker commands cheat sheet
+├── tests/
+│   ├── test_main.py        # Unit tests (15+ tests with pytest)
+│   └── test_parser.py      # Parser unit tests
 ├── examples/
 │   ├── wpscan-findings.json           # Sample WPScan input
 │   └── wpvulnerability-api-response.json  # Sample API response
