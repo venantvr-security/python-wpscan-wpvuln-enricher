@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/save-transcript.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save-transcript.sh"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/save-transcript.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save-transcript.sh"
           }
         ]
       }
